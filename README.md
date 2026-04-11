@@ -27,7 +27,7 @@ Ele retorna uma sessão autenticada e pronta para uso, com o token `aws-waf-toke
 ## 💻 Como usar
 
 ```python
-from solver import solve
+from waf.solver import solve
 
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 
