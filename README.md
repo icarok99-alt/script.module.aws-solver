@@ -1,6 +1,6 @@
 # aws-solver
 
-**Versão:** 1.0.0  
+**Versão:** 1.0.1  
 **Desenvolvido por:** oneplay team
 
 ---
@@ -19,8 +19,19 @@ Ele retorna uma sessão autenticada e pronta para uso, com o token `aws-waf-toke
 - Retorna sessão `requests` autenticada e pronta para uso
 - Suporte a proxy
 - Compatível com a API do `requests`
-- Implementado 100% em Python
+- Implementado 100% em Python — sem dependências externas além de `requests`
 - Leve e otimizado para Kodi
+
+---
+
+## 📦 Dependências
+
+| Pacote     | Licença     | Uso                                         |
+|------------|-------------|---------------------------------------------|
+| `requests` | Apache 2.0  | Sessão HTTP e requisições                   |
+| `hashlib`  | PSF (stdlib)| Hash SHA-256 e Scrypt para PoW challenge    |
+
+> **Nota:** `pyscrypt` foi removido. O módulo agora usa `hashlib.scrypt` da biblioteca padrão do Python 3.6+, sem necessidade de instalação adicional.
 
 ---
 
@@ -75,6 +86,14 @@ except Exception:
 response = session.get('https://site-protegido.com/pagina')
 print(response.status_code)
 ```
+
+---
+
+## 📄 Licença
+
+MIT License — veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+Este projeto é open source e sem fins lucrativos.
 
 ---
 
