@@ -5,7 +5,6 @@ import base64
 import hashlib
 
 import requests
-import pyscrypt
 
 from waf.crypto   import encode, encrypt
 from waf.signal   import build_signal
@@ -98,7 +97,7 @@ def _solve_pow(challenge_input: str, checksum: str, difficulty: int, ctype: str,
         combined = challenge_input + checksum
         salt = checksum.encode()
         for n in range(100000000):
-            if _check_zeros(pyscrypt.hash(f"{combined}{n}".encode(), salt, memory, 8, 1, 32), difficulty):
+            if _check_zeros(hashlib.scrypt(f"{combined}{n}".encode(), salt=salt, n=memory, r=8, p=1, dklen=32), difficulty):
                 return str(n)
     elif ctype == "SHA256":
         base = (challenge_input + checksum).encode()
@@ -238,7 +237,6 @@ def solve(site: str, ua: str, proxy: str = None,
         difficulty = decoded.get("difficulty", 1)
         memory = decoded.get("memory", 128)
 
-        print(f'[SOLVER] Round {round_idx} | type={ctype} | difficulty={difficulty}')
 
         if has_token:
             metrics.insert(0, {"name": "0", "value": inp_latency, "unit": "2"})
@@ -268,7 +266,6 @@ def solve(site: str, ua: str, proxy: str = None,
         else:
             token = result.get("token", token)
 
-    print(f'[SOLVER] Concluído em {time.time() - t0:.2f}s | token={token[:40] if token else "N/A"}...')
     return {"token": token}, session
 
 
