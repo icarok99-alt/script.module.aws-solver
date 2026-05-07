@@ -18,6 +18,7 @@ RE_GOKU      = re.compile(r'window\.gokuProps\s*=\s*(\{[^}]+\})')
 ENDPOINT = {
     "HashcashScrypt":   "verify",
     "SHA256":           "verify",
+    "HashcashSHA2":     "verify",   # fix: novo tipo de challenge
     "NetworkBandwidth": "mp_verify",
 }
 
@@ -99,7 +100,7 @@ def _solve_pow(challenge_input: str, checksum: str, difficulty: int, ctype: str,
         for n in range(100000000):
             if _check_zeros(hashlib.scrypt(f"{combined}{n}".encode(), salt=salt, n=memory, r=8, p=1, dklen=32), difficulty):
                 return str(n)
-    elif ctype == "SHA256":
+    elif ctype in ("SHA256", "HashcashSHA2"):  # fix: HashcashSHA2 usa o mesmo algoritmo SHA-256
         base = (challenge_input + checksum).encode()
         for n in range(100000000):
             if _check_zeros(hashlib.sha256(base + str(n).encode()).digest(), difficulty):
