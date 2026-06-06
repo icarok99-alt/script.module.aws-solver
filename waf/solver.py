@@ -3,6 +3,7 @@ import json
 import time
 import base64
 import hashlib
+from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -32,7 +33,8 @@ BRANDS = {
 }
 
 
-def _parse_ua(ua: str) -> tuple[str, str]:
+def _parse_ua(ua):
+    # type: (str) -> Tuple[str, str]
     m = re.search(r"Chrome/(\d+)", ua)
     ver = m.group(1) if m else "144"
     platform = "Windows" if "windows" in ua.lower() else "Linux"
@@ -40,14 +42,15 @@ def _parse_ua(ua: str) -> tuple[str, str]:
     return brand, platform
 
 
-def _nav_headers(site: str, ua: str) -> dict:
+def _nav_headers(site, ua):
+    # type: (str, str) -> dict
     brand, platform = _parse_ua(ua)
     return {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "accept-language": "en-US,en;q=0.9",
         "sec-ch-ua": brand,
         "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": f'"{platform}"',
+        "sec-ch-ua-platform": '"{0}"'.format(platform),
         "sec-fetch-dest": "document",
         "sec-fetch-mode": "navigate",
         "sec-fetch-site": "none",
@@ -57,7 +60,8 @@ def _nav_headers(site: str, ua: str) -> dict:
     }
 
 
-def _api_headers(site: str, ua: str, same_origin: bool = True) -> dict:
+def _api_headers(site, ua, same_origin=True):
+    # type: (str, str, bool) -> dict
     brand, platform = _parse_ua(ua)
     return {
         "accept": "*/*",
@@ -67,10 +71,10 @@ def _api_headers(site: str, ua: str, same_origin: bool = True) -> dict:
         "origin": site,
         "pragma": "no-cache",
         "priority": "u=1, i",
-        "referer": f"{site}/",
+        "referer": "{0}/".format(site),
         "sec-ch-ua": brand,
         "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": f'"{platform}"',
+        "sec-ch-ua-platform": '"{0}"'.format(platform),
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-origin" if same_origin else "cross-site",
@@ -78,7 +82,8 @@ def _api_headers(site: str, ua: str, same_origin: bool = True) -> dict:
     }
 
 
-def _check_zeros(h: bytes, difficulty: int) -> bool:
+def _check_zeros(h, difficulty):
+    # type: (bytes, int) -> bool
     z = 0
     for b in h:
         if b == 0:
@@ -93,12 +98,13 @@ def _check_zeros(h: bytes, difficulty: int) -> bool:
     return z >= difficulty
 
 
-def _solve_pow(challenge_input: str, checksum: str, difficulty: int, ctype: str, memory: int = 128) -> str:
+def _solve_pow(challenge_input, checksum, difficulty, ctype, memory=128):
+    # type: (str, str, int, str, int) -> str
     if ctype == "HashcashScrypt":
         combined = challenge_input + checksum
         salt = checksum.encode()
         for n in range(100000000):
-            if _check_zeros(hashlib.scrypt(f"{combined}{n}".encode(), salt=salt, n=memory, r=8, p=1, dklen=32), difficulty):
+            if _check_zeros(hashlib.scrypt("{0}{1}".format(combined, n).encode(), salt=salt, n=memory, r=8, p=1, dklen=32), difficulty):
                 return str(n)
     elif ctype in ("SHA256", "HashcashSHA2"):  # fix: HashcashSHA2 usa o mesmo algoritmo SHA-256
         base = (challenge_input + checksum).encode()
@@ -108,20 +114,22 @@ def _solve_pow(challenge_input: str, checksum: str, difficulty: int, ctype: str,
     return "0"
 
 
-def _solve_bandwidth(difficulty: int) -> str:
+def _solve_bandwidth(difficulty):
+    # type: (int) -> str
     sz = BWDTH_SIZES.get(difficulty)
     if not sz:
         return base64.b64encode(b"\x00" * 1024).decode()
     return base64.b64encode(b"\x00" * sz).decode()
 
 
-def _discover(session: requests.Session, site: str, ua: str) -> tuple[str, bool, dict | None]:
+def _discover(session, site, ua):
+    # type: (requests.Session, str, str) -> Tuple[str, bool, Optional[dict]]
     resp = session.get(site, headers=_nav_headers(site, ua))
     html = resp.text
 
     m = RE_CHAL_SAME.search(html)
     if m:
-        chal_url = f"{site}{m.group(1)}"
+        chal_url = "{0}{1}".format(site, m.group(1))
         same = True
     else:
         m = RE_CHAL_EXT.search(html)
@@ -141,18 +149,20 @@ def _discover(session: requests.Session, site: str, ua: str) -> tuple[str, bool,
     return chal_url, same, goku
 
 
-def _prepare(site: str, ua: str, has_token: bool) -> tuple[str, str, list]:
+def _prepare(site, ua, has_token):
+    # type: (str, str, bool) -> Tuple[str, str, List]
     metrics, fp_metrics = build_metrics(has_token=has_token)
-    fp       = build_signal(f"{site}/", fp_metrics, ua)
+    fp       = build_signal("{0}/".format(site), fp_metrics, ua)
     encoded  = encode(fp)
     checksum = encoded.split("#")[0]
     encrypted = encrypt(encoded)
     return checksum, encrypted, metrics
 
 
-def _build_body(domain: str, challenge: dict, solution: str,
-                checksum: str, encrypted: str, metrics: list,
-                existing_token: str = None, goku_props: dict = None) -> str:
+def _build_body(domain, challenge, solution,
+                checksum, encrypted, metrics,
+                existing_token=None, goku_props=None):
+    # type: (str, dict, str, str, str, list, Optional[str], Optional[dict]) -> str
     d = {
         "challenge": challenge,
         "solution": solution,
@@ -168,9 +178,10 @@ def _build_body(domain: str, challenge: dict, solution: str,
     return json.dumps(d, separators=(",", ":"))
 
 
-def _build_multipart(domain: str, challenge: dict, solution_data: str,
-                     checksum: str, encrypted: str, metrics: list,
-                     existing_token: str = None, goku_props: dict = None) -> tuple[str, str]:
+def _build_multipart(domain, challenge, solution_data,
+                     checksum, encrypted, metrics,
+                     existing_token=None, goku_props=None):
+    # type: (str, dict, str, str, str, list, Optional[str], Optional[dict]) -> Tuple[str, str]
     meta = {
         "challenge": challenge,
         "solution": None,
@@ -188,30 +199,32 @@ def _build_multipart(domain: str, challenge: dict, solution_data: str,
         __import__("random").choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=16)
     )
     parts = []
-    parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"solution_data\"\r\n\r\n{solution_data}")
-    parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"solution_metadata\"\r\n\r\n{json.dumps(meta, separators=(',', ':'))}")
-    parts.append(f"--{boundary}--\r\n")
+    parts.append("--{0}\r\nContent-Disposition: form-data; name=\"solution_data\"\r\n\r\n{1}".format(boundary, solution_data))
+    parts.append("--{0}\r\nContent-Disposition: form-data; name=\"solution_metadata\"\r\n\r\n{1}".format(boundary, json.dumps(meta, separators=(',', ':'))))
+    parts.append("--{0}--\r\n".format(boundary))
     body = "\r\n".join(parts)
-    ct = f"multipart/form-data; boundary={boundary}"
+    ct = "multipart/form-data; boundary={0}".format(boundary)
     return body, ct
 
 
-def _make_session(proxy: str = None) -> requests.Session:
+def _make_session(proxy=None):
+    # type: (Optional[str]) -> requests.Session
     session = requests.Session()
     if proxy:
         session.proxies = {"http": proxy, "https": proxy}
     return session
 
 
-def _do_verify(session: requests.Session, chal_url: str, endpoint: str, body: str,
-               cookies: dict, hdrs: dict, content_type: str) -> dict:
-    h = {**hdrs, "content-type": content_type}
-    resp = session.post(f"{chal_url}/{endpoint}", data=body, cookies=cookies, headers=h)
+def _do_verify(session, chal_url, endpoint, body, cookies, hdrs, content_type):
+    # type: (requests.Session, str, str, str, dict, dict, str) -> dict
+    h = dict(hdrs)
+    h["content-type"] = content_type
+    resp = session.post("{0}/{1}".format(chal_url, endpoint), data=body, cookies=cookies, headers=h)
     return resp.json()
 
 
-def solve(site: str, ua: str, proxy: str = None,
-          cookies: dict = None, session: requests.Session = None) -> tuple[dict, requests.Session]:
+def solve(site, ua, proxy=None, cookies=None, session=None):
+    # type: (str, str, Optional[str], Optional[dict], Optional[requests.Session]) -> Tuple[dict, requests.Session]
     site = site.rstrip("/")
     domain = site.split("//")[1].split("/")[0]
     cookies = cookies or {}
@@ -229,7 +242,7 @@ def solve(site: str, ua: str, proxy: str = None,
         checksum, encrypted, metrics = _prepare(site, ua, has_token)
 
         t_inp = time.time()
-        resp = session.get(f"{chal_url}/inputs?client=browser", cookies=cookies, headers=hdrs)
+        resp = session.get("{0}/inputs?client=browser".format(chal_url), cookies=cookies, headers=hdrs)
         inp_latency = round((time.time() - t_inp) * 1000, 1)
         inputs = resp.json()
         challenge = inputs["challenge"]
@@ -237,7 +250,6 @@ def solve(site: str, ua: str, proxy: str = None,
         ctype = decoded.get("challenge_type", "")
         difficulty = decoded.get("difficulty", 1)
         memory = decoded.get("memory", 128)
-
 
         if has_token:
             metrics.insert(0, {"name": "0", "value": inp_latency, "unit": "2"})

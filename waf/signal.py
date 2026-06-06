@@ -3,6 +3,7 @@ import time
 import json
 import random
 from pathlib import Path
+from typing import List, Tuple
 
 PLUGINS = [
     {"name": "PDF Viewer",                "str": "PDF Viewer "},
@@ -40,7 +41,8 @@ MATH = {
 }
 
 
-def _rand_canvas() -> tuple[int, list[int]]:
+def _rand_canvas():
+    # type: () -> Tuple[int, List[int]]
     bins = []
     for v in BASE_BINS:
         if v > 500:
@@ -53,7 +55,8 @@ def _rand_canvas() -> tuple[int, list[int]]:
     return h, bins
 
 
-def build_signal(site: str, fp_metrics: dict, ua: str) -> dict:
+def build_signal(site, fp_metrics, ua):
+    # type: (str, dict, str) -> dict
     now = int(time.time() * 1000)
     gpu = random.choice(_GPU_POOL)
     c_hash, c_bins = _rand_canvas()
@@ -62,7 +65,7 @@ def build_signal(site: str, fp_metrics: dict, ua: str) -> dict:
         "start":        now,
         "flashVersion": None,
         "plugins":      PLUGINS,
-        "dupedPlugins": f"{PLUGIN_STR}||{SCREEN}",
+        "dupedPlugins": "{0}||{1}".format(PLUGIN_STR, SCREEN),
         "screenInfo":   SCREEN,
         "referrer":     "",
         "userAgent":    ua,

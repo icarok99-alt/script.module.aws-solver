@@ -1,6 +1,6 @@
 # aws-solver
 
-**Versão:** 1.0.2  
+**Versão:** 1.0.3  
 **Desenvolvido por:** oneplay team
 
 ---
