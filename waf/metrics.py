@@ -1,4 +1,9 @@
+from __future__ import print_function
 import random
+import sys
+
+# Verifica se está no Python 2
+IS_PYTHON2 = sys.version_info[0] == 2
 
 COLLECTORS = [
     ("fp2",          "100",       0.5, 3),
@@ -18,13 +23,23 @@ COLLECTORS = [
 ]
 
 
-def _r(lo: float, hi: float) -> float:
-    return round(random.uniform(lo, hi), 1)
+def _r(lo, hi):
+    if IS_PYTHON2:
+        # Python 2: random.uniform retorna float, round retorna float
+        return round(random.uniform(lo, hi), 1)
+    else:
+        # Python 3: random.uniform retorna float, round retorna float
+        return round(random.uniform(lo, hi), 1)
 
 
-def build_metrics(has_token: bool = False) -> tuple[list, dict]:
+def build_metrics(has_token=False):
+    # List comprehension compatível com Python 2 e 3
     collectors = [(n, mid, _r(lo, hi)) for n, mid, lo, hi in COLLECTORS]
-    fp_metrics = {n: int(v) for n, _, v in collectors}
+    
+    # Dict comprehension compatível com Python 2.7+
+    fp_metrics = {}
+    for n, _, v in collectors:
+        fp_metrics[n] = int(v)
 
     enc     = _r(0.5, 3)   # signal encoding time
     crypt   = _r(2, 8)     # signal encryption time
@@ -34,9 +49,10 @@ def build_metrics(has_token: bool = False) -> tuple[list, dict]:
     cookie  = _r(0.1, 1)   # aws-waf-token cookie fetch
     total   = round(acq + chall + cookie, 1)            # total = acq + challenge + cookie
 
-    m = [{"name": "2", "value": enc, "unit": "2"}]                          # SignalEncodingTime
-    m += [{"name": mid, "value": v, "unit": "2"} for _, mid, v in collectors]
-    m += [
+    # Construção da lista compatível com Python 2 e 3
+    m = [{"name": "2", "value": enc, "unit": "2"}]
+    m.extend([{"name": mid, "value": v, "unit": "2"} for _, mid, v in collectors])
+    m.extend([
         {"name": "3", "value": crypt,                 "unit": "2"},         # SignalEncryptionTime
         {"name": "7", "value": 1 if has_token else 0, "unit": "4"},         # ExistingTokenFound (count)
         {"name": "1", "value": acq,                    "unit": "2"},        # SignalAcquisitionTime
@@ -44,6 +60,6 @@ def build_metrics(has_token: bool = False) -> tuple[list, dict]:
         {"name": "5", "value": cookie,                 "unit": "2"},        # CookieFetchTime
         {"name": "6", "value": total,                  "unit": "2"},        # TotalTime
         {"name": "8", "value": 1,                      "unit": "4"},        # ChallengeExpiredRetryBucket (count)
-    ]
+    ])
 
     return m, fp_metrics
